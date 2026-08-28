@@ -1,0 +1,27 @@
+# Hawker gateway — Fly.io 배포 설정
+# 배포: fly launch --no-deploy (앱 이름 확정) → fly volumes create hawker_data → fly deploy
+app = "hawker-gateway"
+primary_region = "nrt"
+
+[build]
+  dockerfile = "apps/gateway/Dockerfile"
+
+[env]
+  PORT = "8402"
+  HAWKER_DB_PATH = "/data/hawker.db"
+  HAWKER_X402_MODE = "stub" # 실결제 전환 시 fly secrets로 facilitator 설정
+
+[mounts]
+  source = "hawker_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8402
+  force_https = true
+  auto_stop_machines = "off"   # SQLite 단일 인스턴스 — 항상 켜둠
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

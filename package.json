@@ -1,0 +1,16 @@
+{
+  "name": "hawker",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Turn your API into an agent-payable product in 5 minutes",
+  "scripts": {
+    "dev": "pnpm --filter @hawker/gateway dev",
+    "db:push": "pnpm --filter @hawker/db push",
+    "db:seed": "pnpm --filter @hawker/db seed",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=22"
+  }
+}
