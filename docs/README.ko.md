@@ -109,4 +109,5 @@ facilitator `/verify` → 업스트림 실행 → `/settle` 순서로 처리되�
   - web: https://hawker-web.vercel.app (Vercel)
   - 공식 MCP Registry: `io.github.HyosikPark/weather` 게시됨 (active)
   - x402 Bazaar: 메인넷/CDP facilitator 전환 시 (docs/deploy.md 참고)
-- [ ] M6 — 정산(payout), Show HN 런칭
+- [x] M6 — 정산(수익 원장·정산 요청·지급 기록) + 런칭 준비(영문 README, Show HN 초안)
+  - 실제 Show HN 게시는 docs/launch.md 체크리스트 완료 후
