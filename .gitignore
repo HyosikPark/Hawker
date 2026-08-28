@@ -9,3 +9,4 @@ data/*.db-wal
 .DS_Store
 *.log
 .next/
+.wallets.testnet.json

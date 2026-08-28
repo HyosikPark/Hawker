@@ -71,11 +71,27 @@ curl -X POST http://localhost:8402/mcp/weather -H 'content-type: application/jso
 # → 402 + payment requirements. Add "X-PAYMENT: test" and it returns live weather.
 ```
 
+## Try it as an agent
+
+`examples/agent-buyer` is a complete autonomous buyer: it hits the paid
+endpoint, receives the 402, signs a USDC authorization with its own wallet, and
+retries — no human in the loop. The first real purchase settled on Base Sepolia:
+[`0x2757d3…8af312`](https://sepolia.basescan.org/tx/0x2757d30a2e55fa51a99eb0b132c6c9e54a18c8ffc8c76aa45025a8ca728af312)
+($0.005 for the current weather in Seoul).
+
+```bash
+pnpm --filter @hawker/example-agent-buyer gen-wallets   # test wallets
+# fund the buyer wallet with testnet USDC: https://faucet.circle.com (Base Sepolia)
+pnpm --filter @hawker/example-agent-buyer buy           # 402 → sign → data + receipt
+```
+
 ## Status
 
-Early MVP, built in the open. Working today: OpenAPI import, hosted MCP
-endpoints, dual-rail billing (x402 testnet / Stripe), metering, dashboard,
-payout ledger, official MCP Registry publishing. Mainnet x402 + Bazaar
-indexing are next. Docs: [deploy runbook](docs/deploy.md) ·
+Early MVP, built in the open. Working today: OpenAPI import (API + dashboard
+form), hosted MCP endpoints, dual-rail billing (**x402 live on Base Sepolia** /
+Stripe credits), metering, payout ledger, and four products on the official MCP
+Registry (`weather`, `fx-rates`, `geocode`, `wiki-summary` under
+`io.github.HyosikPark/*`). Mainnet x402 + Bazaar indexing are next.
+Docs: [deploy runbook](docs/deploy.md) ·
 [market research](docs/market-research-2026-08.md) ·
 [한국어 문서](docs/README.ko.md)

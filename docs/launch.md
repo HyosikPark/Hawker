@@ -36,12 +36,13 @@
 
 ## 런칭 전 체크리스트
 
-- [ ] x402 테스트넷(base-sepolia) 실결제 데모 — stub 아닌 진짜 verify/settle
-      (`fly secrets set HAWKER_X402_MODE=facilitator ...`, docs/deploy.md)
-- [ ] 첫 상품 2~3개 추가 (카탈로그가 비어 보이지 않게 — 환율, 지오코딩 등 무료 업스트림)
-- [ ] 대시보드에서 신규 가입 → 상품 생성 흐름 스스로 리허설 (셀프서브 UX 구멍 확인)
-- [ ] README의 curl 데모가 복붙으로 바로 되는지 재확인
-- [ ] GitHub repo: About(설명+링크), topics(mcp, x402, ai-agents, api-monetization)
+- [x] x402 테스트넷(base-sepolia) 실결제 데모 — **완료 (2026-08-29)**: 프로덕션 facilitator 모드 전환,
+      examples/agent-buyer로 첫 자율 결제 성공. 온체인 tx:
+      `0x2757d30a2e55fa51a99eb0b132c6c9e54a18c8ffc8c76aa45025a8ca728af312` (플랫폼 지갑에 $0.005 수취 확인)
+- [x] 첫 상품 추가 — fx-rates·geocode·wiki-summary 3개 라이브 + MCP Registry 게시 (총 4개)
+- [x] 셀프서브 리허설 → 최대 구멍(상품 생성이 curl 전용) 발견, **대시보드 상품 생성 폼 추가로 해결**
+- [x] GitHub repo: About(설명+데모 링크), topics(mcp, x402, ai-agents, api-monetization, agentic-commerce)
+- [ ] README의 curl 데모 복붙 재확인 (프로덕션은 이제 facilitator 모드 — 로컬 stub 데모와 구분 명확한지)
 - [ ] HN 계정 준비, 화·수요일 오전(미 동부) 게시가 통계적으로 유리
 - [ ] 첫 1시간 댓글 대응 시간 확보 (질문에 빠른 답변이 순위를 결정)
 

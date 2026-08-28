@@ -180,6 +180,56 @@ export default function Dashboard() {
     setToken(t);
   };
 
+  // 상품 생성 폼
+  const [npSlug, setNpSlug] = useState('');
+  const [npPrice, setNpPrice] = useState('0.002');
+  const [npSpec, setNpSpec] = useState('');
+  const [npAuthHeader, setNpAuthHeader] = useState('');
+  const [npAuthValue, setNpAuthValue] = useState('');
+  const [npResult, setNpResult] = useState<string | null>(null);
+  const [npBusy, setNpBusy] = useState(false);
+
+  const createProduct = async () => {
+    if (!token) return;
+    setNpBusy(true);
+    setNpResult(null);
+    try {
+      const priceUsd = Number(npPrice);
+      const spec = npSpec.trim();
+      const body: Record<string, unknown> = {
+        slug: npSlug.trim(),
+        defaultPriceUsdMicros: Math.round(priceUsd * 1_000_000),
+      };
+      if (/^https?:\/\//.test(spec)) body.openapiUrl = spec;
+      else body.openapi = spec;
+      if (npAuthHeader.trim() && npAuthValue.trim()) {
+        body.upstreamAuth = { header: npAuthHeader.trim(), value: npAuthValue.trim() };
+      }
+      const res = await fetch(`${GW}/v1/products`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setNpResult(`⚠ ${data.error ?? `HTTP ${res.status}`}`);
+      } else {
+        setNpResult(
+          `✓ Live at ${data.mcpUrl} — ${data.tools.length} tools: ${data.tools
+            .map((t: { name: string; price: string }) => `${t.name} (${t.price})`)
+            .join(', ')}`,
+        );
+        setNpSlug('');
+        setNpSpec('');
+        void fetchStats(token);
+      }
+    } catch (e) {
+      setNpResult(`⚠ ${(e as Error).message}`);
+    } finally {
+      setNpBusy(false);
+    }
+  };
+
   const openEvents = async (slug: string) => {
     if (!token) return;
     setSelected(slug);
@@ -329,6 +379,46 @@ export default function Dashboard() {
               )}
             </div>
           )}
+
+          <div className="card">
+            <h2 className="section">New product — paste a spec, start selling</h2>
+            <div className="row">
+              <div style={{ flex: 1 }}>
+                <label className="label">Slug (URL path)</label>
+                <input className="input mono" value={npSlug} onChange={(e) => setNpSlug(e.target.value)} placeholder="my-api" />
+              </div>
+              <div style={{ width: 180 }}>
+                <label className="label">Price per call (USD)</label>
+                <input className="input" value={npPrice} onChange={(e) => setNpPrice(e.target.value)} placeholder="0.002" />
+              </div>
+            </div>
+            <label className="label">OpenAPI spec — URL or paste JSON/YAML</label>
+            <textarea
+              className="input mono"
+              rows={4}
+              value={npSpec}
+              onChange={(e) => setNpSpec(e.target.value)}
+              placeholder={'https://example.com/openapi.json\n— or paste the document itself'}
+            />
+            <div className="row">
+              <div style={{ flex: 1 }}>
+                <label className="label">Upstream auth header (optional)</label>
+                <input className="input mono" value={npAuthHeader} onChange={(e) => setNpAuthHeader(e.target.value)} placeholder="X-Api-Key" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label className="label">Upstream auth value (encrypted at rest)</label>
+                <input className="input mono" type="password" value={npAuthValue} onChange={(e) => setNpAuthValue(e.target.value)} placeholder="sk-..." />
+              </div>
+            </div>
+            <div style={{ marginTop: 14 }}>
+              <button className="btn" onClick={() => void createProduct()} disabled={npBusy || !npSlug.trim() || !npSpec.trim()}>
+                {npBusy ? 'Creating…' : 'Create product'}
+              </button>
+            </div>
+            {npResult && (
+              <p className="hint mono" style={{ marginTop: 10, wordBreak: 'break-all' }}>{npResult}</p>
+            )}
+          </div>
 
           <div className="card">
             <h2 className="section">Products</h2>

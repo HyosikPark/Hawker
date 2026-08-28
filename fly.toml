@@ -9,7 +9,11 @@ primary_region = "nrt"
 [env]
   PORT = "8402"
   HAWKER_DB_PATH = "/data/hawker.db"
-  HAWKER_X402_MODE = "stub" # 실결제 전환 시 fly secrets로 facilitator 설정
+  # x402 실검증/정산 (테스트넷) — 메인넷 전환 시 network=base + CDP facilitator
+  HAWKER_X402_MODE = "facilitator"
+  HAWKER_X402_FACILITATOR_URL = "https://x402.org/facilitator"
+  HAWKER_X402_NETWORK = "base-sepolia"
+  HAWKER_PAYTO_ADDRESS = "0x98563C4b9d6F1D18bfe6Bd813DD2C6c3CFcE7B19"
 
 [mounts]
   source = "hawker_data"
