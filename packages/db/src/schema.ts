@@ -72,6 +72,25 @@ export const apiKeys = sqliteTable('api_keys', {
     .$defaultFn(() => new Date()),
 });
 
+// 판매자 정산 기록. MVP: 요청은 API로, 실송금은 운영자 수동 후 paid 처리.
+export const payouts = sqliteTable('payouts', {
+  id: text('id').primaryKey(),
+  sellerId: text('seller_id')
+    .notNull()
+    .references(() => sellers.id),
+  amountUsdMicros: integer('amount_usd_micros').notNull(),
+  status: text('status', { enum: ['pending', 'paid'] })
+    .notNull()
+    .default('pending'),
+  // 요청 시점의 지급 주소 스냅샷 (이후 판매자가 주소를 바꿔도 기록 보존)
+  payoutAddress: text('payout_address').notNull(),
+  txRef: text('tx_ref'),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  paidAt: integer('paid_at', { mode: 'timestamp' }),
+});
+
 // Stripe 크레딧 충전 기록. id = Stripe Checkout Session id → 웹훅 재전송에도 중복 충전 방지.
 export const creditTopups = sqliteTable('credit_topups', {
   id: text('id').primaryKey(),

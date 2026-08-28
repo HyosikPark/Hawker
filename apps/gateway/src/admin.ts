@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import { Hono, type MiddlewareHandler } from 'hono';
 import { desc, eq, inArray } from 'drizzle-orm';
 import YAML from 'yaml';
-import { db, sellers, products, tools, usageEvents } from '@hawker/db';
+import { db, sellers, products, tools, usageEvents, payouts } from '@hawker/db';
 import { encryptSecret, sha256Hex } from './crypto.js';
 import { importOpenApi } from './openapi.js';
 import { canonicalUrl, formatUsd } from './types.js';
@@ -56,6 +56,9 @@ const requireSeller: MiddlewareHandler<{ Variables: { seller: Seller } }> = asyn
 admin.use('/products', requireSeller);
 admin.use('/products/*', requireSeller);
 admin.use('/stats', requireSeller);
+admin.use('/earnings', requireSeller);
+admin.use('/payouts', requireSeller);
+admin.use('/sellers/me', requireSeller);
 
 admin.post('/products', async (c) => {
   const seller = c.get('seller');
@@ -265,4 +268,110 @@ admin.get('/products/:slug/events', (c) => {
       createdAt: e.createdAt.toISOString(),
     })),
   });
+});
+
+// --- 정산 (M6) ---
+
+const FEE_BP = Number(process.env.HAWKER_FEE_BP ?? 1000); // 10% 기본
+const MIN_PAYOUT_USD_MICROS = Number(process.env.HAWKER_MIN_PAYOUT_USD_MICROS ?? 1_000_000); // $1
+
+function computeEarnings(sellerId: string) {
+  const myProducts = db.select().from(products).where(eq(products.sellerId, sellerId)).all();
+  let gross = 0;
+  if (myProducts.length > 0) {
+    const events = db
+      .select()
+      .from(usageEvents)
+      .where(inArray(usageEvents.productId, myProducts.map((p) => p.id)))
+      .all();
+    for (const e of events) if (e.status === 'ok') gross += e.priceUsdMicros;
+  }
+  const fee = Math.floor((gross * FEE_BP) / 10_000);
+  const net = gross - fee;
+  const rows = db.select().from(payouts).where(eq(payouts.sellerId, sellerId)).all();
+  const requested = rows.filter((p) => p.status === 'pending').reduce((s, p) => s + p.amountUsdMicros, 0);
+  const paid = rows.filter((p) => p.status === 'paid').reduce((s, p) => s + p.amountUsdMicros, 0);
+  return { gross, fee, net, requested, paid, available: net - requested - paid };
+}
+
+admin.patch('/sellers/me', async (c) => {
+  const seller = c.get('seller');
+  const body = await c.req.json().catch(() => null);
+  const addr = typeof body?.payoutAddress === 'string' ? body.payoutAddress.trim() : '';
+  if (!/^0x[0-9a-fA-F]{40}$/.test(addr)) {
+    return c.json({ error: 'payoutAddress는 0x로 시작하는 40자리 hex(EVM 주소)여야 합니다.' }, 400);
+  }
+  db.update(sellers).set({ payoutAddress: addr }).where(eq(sellers.id, seller.id)).run();
+  return c.json({ payoutAddress: addr });
+});
+
+admin.get('/earnings', (c) => {
+  const seller = c.get('seller');
+  const e = computeEarnings(seller.id);
+  return c.json({
+    grossUsdMicros: e.gross,
+    feeUsdMicros: e.fee,
+    feeBp: FEE_BP,
+    netUsdMicros: e.net,
+    requestedUsdMicros: e.requested,
+    paidUsdMicros: e.paid,
+    availableUsdMicros: e.available,
+    minPayoutUsdMicros: MIN_PAYOUT_USD_MICROS,
+    payoutAddress: seller.payoutAddress,
+  });
+});
+
+admin.get('/payouts', (c) => {
+  const seller = c.get('seller');
+  const rows = db
+    .select()
+    .from(payouts)
+    .where(eq(payouts.sellerId, seller.id))
+    .orderBy(desc(payouts.createdAt))
+    .all();
+  return c.json({
+    payouts: rows.map((p) => ({
+      id: p.id,
+      amountUsdMicros: p.amountUsdMicros,
+      status: p.status,
+      payoutAddress: p.payoutAddress,
+      txRef: p.txRef,
+      createdAt: p.createdAt.toISOString(),
+      paidAt: p.paidAt?.toISOString() ?? null,
+    })),
+  });
+});
+
+admin.post('/payouts', async (c) => {
+  const seller = c.get('seller');
+  if (!seller.payoutAddress) {
+    return c.json({ error: '먼저 PATCH /v1/sellers/me로 payoutAddress를 설정하세요.' }, 400);
+  }
+  const body = await c.req.json().catch(() => ({}));
+  const earnings = computeEarnings(seller.id);
+  const amount = Number.isInteger(body?.amountUsdMicros)
+    ? Number(body.amountUsdMicros)
+    : earnings.available;
+  if (amount < MIN_PAYOUT_USD_MICROS) {
+    return c.json(
+      { error: `최소 정산 금액은 ${MIN_PAYOUT_USD_MICROS} micros입니다. (가용: ${earnings.available})` },
+      400,
+    );
+  }
+  if (amount > earnings.available) {
+    return c.json({ error: `가용 잔액(${earnings.available} micros)을 초과했습니다.` }, 400);
+  }
+  const id = crypto.randomUUID();
+  db.insert(payouts)
+    .values({ id, sellerId: seller.id, amountUsdMicros: amount, payoutAddress: seller.payoutAddress })
+    .run();
+  return c.json(
+    {
+      payoutId: id,
+      amountUsdMicros: amount,
+      status: 'pending',
+      note: 'USDC(Base) 지급은 주기 정산으로 처리됩니다.',
+    },
+    201,
+  );
 });

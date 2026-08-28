@@ -20,6 +20,24 @@ interface Stats {
   daily: DailyPoint[];
 }
 
+interface Earnings {
+  grossUsdMicros: number;
+  feeUsdMicros: number;
+  feeBp: number;
+  netUsdMicros: number;
+  availableUsdMicros: number;
+  minPayoutUsdMicros: number;
+  payoutAddress: string | null;
+}
+
+interface Payout {
+  id: string;
+  amountUsdMicros: number;
+  status: string;
+  txRef: string | null;
+  createdAt: string;
+}
+
 interface UsageEvent {
   toolName: string;
   rail: string;
@@ -40,6 +58,10 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [events, setEvents] = useState<UsageEvent[] | null>(null);
+  const [earnings, setEarnings] = useState<Earnings | null>(null);
+  const [payoutList, setPayoutList] = useState<Payout[]>([]);
+  const [addressInput, setAddressInput] = useState('');
+  const [payoutMsg, setPayoutMsg] = useState<string | null>(null);
 
   // 가입 폼
   const [email, setEmail] = useState('');
@@ -75,10 +97,46 @@ export default function Dashboard() {
         return;
       }
       setStats((await res.json()) as Stats);
+      const [eRes, pRes] = await Promise.all([
+        fetch(`${GW}/v1/earnings`, { headers: { Authorization: `Bearer ${t}` } }),
+        fetch(`${GW}/v1/payouts`, { headers: { Authorization: `Bearer ${t}` } }),
+      ]);
+      if (eRes.ok) {
+        const e = (await eRes.json()) as Earnings;
+        setEarnings(e);
+        setAddressInput(e.payoutAddress ?? '');
+      }
+      if (pRes.ok) setPayoutList(((await pRes.json()) as { payouts: Payout[] }).payouts);
     } catch {
       setError(`Could not reach the gateway at ${GW}. Is it running?`);
     }
   }, []);
+
+  const saveAddress = async () => {
+    if (!token) return;
+    setPayoutMsg(null);
+    const res = await fetch(`${GW}/v1/sellers/me`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ payoutAddress: addressInput.trim() }),
+    });
+    const data = await res.json();
+    setPayoutMsg(res.ok ? 'Payout address saved.' : data.error);
+    if (res.ok) void fetchStats(token);
+  };
+
+  const requestPayout = async () => {
+    if (!token) return;
+    setPayoutMsg(null);
+    const res = await fetch(`${GW}/v1/payouts`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const data = await res.json();
+    setPayoutMsg(res.ok ? `Payout requested: ${usd(data.amountUsdMicros)} (USDC on Base, batched)` : data.error);
+    if (res.ok) void fetchStats(token);
+  };
 
   useEffect(() => {
     if (token) void fetchStats(token);
@@ -203,6 +261,74 @@ export default function Dashboard() {
             <h2 className="section">Revenue — last 14 days</h2>
             <RevenueChart daily={stats.daily} />
           </div>
+
+          {earnings && (
+            <div className="card">
+              <h2 className="section">Earnings &amp; payouts</h2>
+              <div className="tiles" style={{ marginBottom: 16 }}>
+                <div className="tile">
+                  <div className="tile-label">Gross</div>
+                  <div className="tile-value" style={{ fontSize: 22 }}>{usd(earnings.grossUsdMicros)}</div>
+                </div>
+                <div className="tile">
+                  <div className="tile-label">Platform fee ({earnings.feeBp / 100}%)</div>
+                  <div className="tile-value" style={{ fontSize: 22 }}>−{usd(earnings.feeUsdMicros)}</div>
+                </div>
+                <div className="tile">
+                  <div className="tile-label">Available to pay out</div>
+                  <div className="tile-value" style={{ fontSize: 22 }}>{usd(earnings.availableUsdMicros)}</div>
+                </div>
+              </div>
+              <label className="label">Payout address (USDC on Base)</label>
+              <div className="row">
+                <input
+                  className="input mono"
+                  value={addressInput}
+                  onChange={(e) => setAddressInput(e.target.value)}
+                  placeholder="0x…"
+                />
+                <button className="btn secondary" onClick={() => void saveAddress()}>
+                  Save
+                </button>
+                <button
+                  className="btn"
+                  onClick={() => void requestPayout()}
+                  disabled={!earnings.payoutAddress || earnings.availableUsdMicros < earnings.minPayoutUsdMicros}
+                >
+                  Request payout
+                </button>
+              </div>
+              {payoutMsg && (
+                <p className="hint" style={{ marginTop: 8 }}>{payoutMsg}</p>
+              )}
+              {payoutList.length > 0 && (
+                <table style={{ marginTop: 14 }}>
+                  <thead>
+                    <tr>
+                      <th>Requested</th>
+                      <th className="num">Amount</th>
+                      <th>Status</th>
+                      <th>Tx</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {payoutList.map((p) => (
+                      <tr key={p.id}>
+                        <td className="mono">{p.createdAt.slice(0, 10)}</td>
+                        <td className="num">{usd(p.amountUsdMicros)}</td>
+                        <td>
+                          <span className="pill" style={p.status === 'paid' ? { color: 'var(--good)' } : undefined}>
+                            {p.status}
+                          </span>
+                        </td>
+                        <td className="mono">{p.txRef ?? '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
 
           <div className="card">
             <h2 className="section">Products</h2>
