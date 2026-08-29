@@ -90,13 +90,13 @@ export default function Landing() {
       </section>
 
       <pre className="code">
-        {`$ curl -X POST https://api.hawker.dev/v1/products \\
+        {`$ curl -X POST https://hawker-gateway.fly.dev/v1/products \\
     -H "Authorization: Bearer hs_..." \\
     -d '{ "slug": "my-api",
           "defaultPriceUsdMicros": 2000,
           "openapiUrl": "https://example.com/openapi.json" }'
 
-→ { "mcpUrl": "https://api.hawker.dev/mcp/my-api", "tools": [...] }`}
+→ { "mcpUrl": "https://hawker-gateway.fly.dev/mcp/my-api", "tools": [...] }`}
       </pre>
 
       <footer className="footer">Hawker · the storefront layer of the agent economy</footer>
