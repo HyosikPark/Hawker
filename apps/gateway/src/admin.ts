@@ -117,10 +117,23 @@ admin.post('/products', async (c) => {
 
   let upstreamAuthEncrypted: string | null = null;
   if (body.upstreamAuth) {
-    const { header, value } = body.upstreamAuth as { header?: string; value?: string };
-    if (!header || !value) return c.json({ error: 'upstreamAuth는 {header, value} 형식입니다.' }, 400);
+    // {header, value}(레거시) 또는 {in: 'header'|'query', name, value}
+    const auth = body.upstreamAuth as {
+      header?: string;
+      in?: string;
+      name?: string;
+      value?: string;
+    };
+    const location = auth.in ?? 'header';
+    const name = auth.name ?? auth.header;
+    if (!name || !auth.value || (location !== 'header' && location !== 'query')) {
+      return c.json(
+        { error: 'upstreamAuth는 {header, value} 또는 {in: "header"|"query", name, value} 형식입니다.' },
+        400,
+      );
+    }
     try {
-      upstreamAuthEncrypted = encryptSecret(JSON.stringify({ header, value }));
+      upstreamAuthEncrypted = encryptSecret(JSON.stringify({ in: location, name, value: auth.value }));
     } catch (err) {
       return c.json({ error: (err as Error).message }, 500);
     }

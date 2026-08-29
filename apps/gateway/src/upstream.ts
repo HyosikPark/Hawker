@@ -34,11 +34,18 @@ export async function callUpstream(
 
   const headers: Record<string, string> = { accept: 'application/json' };
   if (product.upstreamAuthEncrypted) {
+    // 레거시 {header, value} 또는 신형 {in: 'header'|'query', name, value}
     const auth = JSON.parse(decryptSecret(product.upstreamAuthEncrypted)) as {
-      header: string;
+      header?: string;
+      in?: 'header' | 'query';
+      name?: string;
       value: string;
     };
-    headers[auth.header] = auth.value;
+    const location = auth.in ?? 'header';
+    const name = auth.name ?? auth.header;
+    if (!name) throw new Error('업스트림 인증 설정이 손상되었습니다 (name 없음)');
+    if (location === 'query') url.searchParams.set(name, auth.value);
+    else headers[name] = auth.value;
   }
 
   let body: string | undefined;
