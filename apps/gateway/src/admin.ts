@@ -61,6 +61,18 @@ admin.use('/stats', requireSeller);
 admin.use('/earnings', requireSeller);
 admin.use('/payouts', requireSeller);
 admin.use('/sellers/me', requireSeller);
+admin.use('/sellers/me/rotate-token', requireSeller);
+
+// 토큰 회전: 새 토큰 발급 + 기존 토큰 즉시 무효화 (유출 대응)
+admin.post('/sellers/me/rotate-token', (c) => {
+  const seller = c.get('seller');
+  const token = `hs_live_${crypto.randomBytes(24).toString('hex')}`;
+  db.update(sellers).set({ tokenHash: sha256Hex(token) }).where(eq(sellers.id, seller.id)).run();
+  return c.json({
+    token,
+    note: '기존 토큰은 즉시 무효화되었습니다. 이 토큰은 다시 표시되지 않습니다.',
+  });
+});
 
 admin.post('/products', async (c) => {
   const seller = c.get('seller');

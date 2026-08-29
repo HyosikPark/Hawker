@@ -11,3 +11,4 @@ data/*.db-wal
 .next/
 .wallets.testnet.json
 .datago.key
+.kr-seller-token*
