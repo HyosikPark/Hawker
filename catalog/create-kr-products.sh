@@ -31,7 +31,7 @@ create <<EOF
   "slug": "kr-apt-trades",
   "name": "kr-apt-trades",
   "description": "Official Korean apartment sale transaction records (Ministry of Land, MOLIT). Actual prices, not listings — data global models cannot know. Response is XML.",
-  "defaultPriceUsdMicros": 5000,
+  "defaultPriceUsdMicros": 10000,
   "upstreamAuth": { "in": "query", "name": "serviceKey", "value": "$SERVICE_KEY" },
   "openapi": {
     "openapi": "3.0.3",
@@ -62,7 +62,7 @@ create <<EOF
   "slug": "kr-biz-check",
   "name": "kr-biz-check",
   "description": "Verify Korean business registration numbers against the National Tax Service. Returns operating status (active/closed/suspended) and taxation type — essential for KYB on Korean counterparties.",
-  "defaultPriceUsdMicros": 3000,
+  "defaultPriceUsdMicros": 10000,
   "upstreamAuth": { "in": "query", "name": "serviceKey", "value": "$SERVICE_KEY" },
   "openapi": {
     "openapi": "3.0.3",
@@ -100,7 +100,7 @@ create <<EOF
   "slug": "kr-holidays",
   "name": "kr-holidays",
   "description": "Official Korean public holidays including substitute holidays (대체공휴일), from Korea Astronomy and Space Science Institute. Authoritative — substitute holidays change yearly and models get them wrong.",
-  "defaultPriceUsdMicros": 1000,
+  "defaultPriceUsdMicros": 2000,
   "upstreamAuth": { "in": "query", "name": "serviceKey", "value": "$SERVICE_KEY" },
   "openapi": {
     "openapi": "3.0.3",

@@ -23,6 +23,12 @@ db.run(
     credits_usd_micros INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL
   )`,
 );
+db.run(
+  sql`CREATE TABLE IF NOT EXISTS x402_claims (
+    id TEXT PRIMARY KEY, product_id TEXT NOT NULL,
+    price_usd_micros INTEGER NOT NULL, created_at INTEGER NOT NULL
+  )`,
+);
 
 after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
 
@@ -114,4 +120,19 @@ test('x402 stub: 잘못된 헤더는 402', async () => {
   const d = await authorizePayment({ priceUsdMicros: 5000, xPaymentHeader: 'bogus', ...ctx });
   assert.equal(d.ok, false);
   assert.equal(!d.ok && d.httpStatus, 402);
+});
+
+test('x402 replay 방어: 같은 결제×리소스 2번째는 거부', async () => {
+  const uniqueCtx = { resource: `https://h.dev/mcp/replay-${Date.now()}`, description: 'x' };
+  const first = await authorizePayment({ priceUsdMicros: 5000, xPaymentHeader: 'test', ...uniqueCtx });
+  assert.equal(first.ok, true, '첫 결제는 통과');
+  const second = await authorizePayment({ priceUsdMicros: 5000, xPaymentHeader: 'test', ...uniqueCtx });
+  assert.equal(second.ok, false, '같은 결제 재사용은 거부');
+  assert.equal(!second.ok && second.httpStatus, 402);
+});
+
+test('x402: 다른 리소스면 같은 헤더도 각각 유효', async () => {
+  const a = await authorizePayment({ priceUsdMicros: 5000, xPaymentHeader: 'test', resource: `https://h.dev/a-${Date.now()}`, description: 'x' });
+  const b = await authorizePayment({ priceUsdMicros: 5000, xPaymentHeader: 'test', resource: `https://h.dev/b-${Date.now()}`, description: 'x' });
+  assert.ok(a.ok && b.ok, '리소스가 다르면 둘 다 통과');
 });

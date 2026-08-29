@@ -104,6 +104,17 @@ export const creditTopups = sqliteTable('credit_topups', {
     .$defaultFn(() => new Date()),
 });
 
+// x402 결제 멱등성: 동일 결제(paymentHash × resource)의 재사용(replay) 차단.
+// PK 충돌 = 이미 소비된 결제 → grant 거부.
+export const x402Claims = sqliteTable('x402_claims', {
+  id: text('id').primaryKey(), // sha256(paymentHeader + ':' + resourceUrl)
+  productId: text('product_id').notNull(),
+  priceUsdMicros: integer('price_usd_micros').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 export const usageEvents = sqliteTable('usage_events', {
   id: text('id').primaryKey(),
   productId: text('product_id').notNull(),

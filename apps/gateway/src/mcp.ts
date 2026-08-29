@@ -249,8 +249,10 @@ async function handleToolCall(
       },
     ],
   });
+  // 유료 응답은 CDN/프록시에 절대 캐시되면 안 됨 (무료 유출 방어)
+  response.headers = { 'Cache-Control': 'no-store, private' };
   if (receipt) {
-    response.headers = { 'X-PAYMENT-RESPONSE': encodeReceipt(receipt) };
+    response.headers['X-PAYMENT-RESPONSE'] = encodeReceipt(receipt);
   }
   return response;
 }

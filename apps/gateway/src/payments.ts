@@ -1,4 +1,4 @@
-import { db, apiKeys } from '@hawker/db';
+import { db, apiKeys, x402Claims } from '@hawker/db';
 import { eq, sql, and, gte } from 'drizzle-orm';
 import { sha256Hex } from './crypto.js';
 import {
@@ -37,6 +37,19 @@ export function paymentRequirements(opts: PriceContext): Record<string, unknown>
   return payment402Body(configFromEnv(), opts);
 }
 
+/** 결제 서명을 원자적으로 1회 소비. 이미 존재(replay)하면 false. */
+function claimX402(claimId: string, priceUsdMicros: number): boolean {
+  try {
+    db.insert(x402Claims)
+      .values({ id: claimId, productId: '', priceUsdMicros })
+      .run();
+    return true;
+  } catch {
+    // UNIQUE(PK) 위반 = 이미 소비된 결제
+    return false;
+  }
+}
+
 export async function authorizePayment(
   opts: PriceContext & { authorizationHeader?: string; xPaymentHeader?: string },
 ): Promise<PaymentDecision> {
@@ -68,14 +81,26 @@ export async function authorizePayment(
   if (opts.xPaymentHeader) {
     const cfg = configFromEnv();
     const verified = await verifyPayment(cfg, opts.xPaymentHeader, buildRequirements(cfg, opts));
-    if (verified.ok) {
-      return { ok: true, grant: { rail: 'x402', paymentHeader: opts.xPaymentHeader } };
+    if (!verified.ok) {
+      return {
+        ok: false,
+        httpStatus: 402,
+        body: { error: `x402 verification failed: ${verified.reason}`, ...paymentRequirements(opts) },
+      };
     }
-    return {
-      ok: false,
-      httpStatus: 402,
-      body: { error: `x402 verification failed: ${verified.reason}`, ...paymentRequirements(opts) },
-    };
+    // Replay 방어: (결제서명 × 리소스) 단일 소비. 이미 소비됐으면 재사용 시도이므로 거부.
+    const claimId = sha256Hex(`${opts.xPaymentHeader}:${opts.resource}`);
+    if (!claimX402(claimId, opts.priceUsdMicros)) {
+      return {
+        ok: false,
+        httpStatus: 402,
+        body: {
+          error: 'This payment has already been used (replay). Provide a fresh X-PAYMENT.',
+          ...paymentRequirements(opts),
+        },
+      };
+    }
+    return { ok: true, grant: { rail: 'x402', paymentHeader: opts.xPaymentHeader } };
   }
 
   return { ok: false, httpStatus: 402, body: paymentRequirements(opts) };
