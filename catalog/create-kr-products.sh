@@ -6,7 +6,8 @@ set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 GW="${1:-http://localhost:8402}"
 KEY_FILE="$ROOT/.datago.key"
-TOKEN_FILE="$ROOT/.kr-seller-token.txt"
+# 대상 게이트웨이별로 판매자 토큰을 분리 저장 (로컬/프로덕션 혼선 방지)
+TOKEN_FILE="$ROOT/.kr-seller-token.$(echo "$GW" | sed 's|[^a-zA-Z0-9]|_|g').txt"
 
 [ -f "$KEY_FILE" ] || { echo "❌ $KEY_FILE 없음 — 공공데이터포털 인증키를 저장하세요."; exit 1; }
 SERVICE_KEY=$(cat "$KEY_FILE" | tr -d '\n')
