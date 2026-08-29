@@ -69,6 +69,30 @@ apps/web         Next.js landing + seller dashboard (revenue chart, payouts)
 packages/db      Drizzle ORM (SQLite for MVP; Postgres planned)
 ```
 
+## Try it right now — no signup, no payment
+
+Call a free tool on the live gateway (Korean district-code lookup):
+
+```bash
+curl -X POST https://hawker-gateway.fly.dev/mcp/kr-district-codes \
+  -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"find_district_code","arguments":{"q":"Gangnam"}}}'
+```
+
+Then watch a paid tool quote you a price — calling without payment returns
+**HTTP 402** with machine-readable x402 payment requirements (this response is
+how agents learn to pay, no docs needed):
+
+```bash
+curl -i -X POST https://hawker-gateway.fly.dev/mcp/kr-apt-trades \
+  -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_apt_trades","arguments":{"LAWD_CD":"11680","DEAL_YMD":"202607"}}}'
+```
+
+To actually buy: fund a wallet with testnet USDC and run
+`examples/agent-buyer`, or create a prepaid key at the
+[dashboard](https://hawker-web.vercel.app/dashboard).
+
 ## Run locally
 
 ```bash

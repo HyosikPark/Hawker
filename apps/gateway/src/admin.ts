@@ -5,6 +5,7 @@ import YAML from 'yaml';
 import { db, sellers, products, tools, usageEvents, payouts } from '@hawker/db';
 import { encryptSecret, sha256Hex } from './crypto.js';
 import { importOpenApi } from './openapi.js';
+import { forbiddenUpstreamReason } from './ssrf.js';
 import { canonicalUrl, formatUsd } from './types.js';
 
 /**
@@ -81,6 +82,8 @@ admin.post('/products', async (c) => {
   // OpenAPI 문서 확보: 인라인(object/string) 또는 URL
   let doc: unknown = body.openapi;
   if (!doc && typeof body.openapiUrl === 'string') {
+    const forbidden = forbiddenUpstreamReason(body.openapiUrl);
+    if (forbidden) return c.json({ error: `openapiUrl: ${forbidden}` }, 400);
     try {
       const res = await fetch(body.openapiUrl, { signal: AbortSignal.timeout(10_000) });
       if (!res.ok) return c.json({ error: `openapiUrl 조회 실패: HTTP ${res.status}` }, 400);
@@ -114,6 +117,8 @@ admin.post('/products', async (c) => {
   if (!/^https?:\/\//.test(upstreamBaseUrl)) {
     return c.json({ error: 'upstreamBaseUrl이 없고 스펙의 servers에서도 찾지 못했습니다.' }, 400);
   }
+  const forbiddenBase = forbiddenUpstreamReason(upstreamBaseUrl);
+  if (forbiddenBase) return c.json({ error: `upstreamBaseUrl: ${forbiddenBase}` }, 400);
 
   let upstreamAuthEncrypted: string | null = null;
   if (body.upstreamAuth) {
