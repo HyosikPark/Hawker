@@ -1,5 +1,26 @@
 # 배포 런북 (M5)
 
+## ⚡ 프로덕션 복구 절차 (Fly 체험 종료 후 — 카드 등록되면 이 순서대로)
+
+```bash
+# 1. https://fly.io/trial 에서 카드 등록 (사람)
+# 2. 재배포 — 볼륨·시크릿·기존 상품 데이터는 보존돼 있음
+fly deploy -a hawker-gateway --yes
+curl https://hawker-gateway.fly.dev/            # 헬스체크
+
+# 3. 한국 데이터 상품 4종을 프로덕션에 개점 (로컬에서 실행 — .datago.key 필요)
+sh catalog/create-kr-products.sh https://hawker-gateway.fly.dev
+
+# 4. MCP Registry에 한국 상품 게시 (디바이스 로그인 필요)
+mcp-publisher login github
+# 상품별 server.json 만들어 publish — scripts/registry-payload.ts 참고
+#   (kr-* 상품은 로컬 DB 기준이므로 프로덕션 URL을 인자로)
+
+# 5. 검증: 402 흐름 + 크레딧 호출 + 대시보드 접속
+# 6. 게시: docs/launch-kr.md (GeekNews → 디스콰이엇) → docs/launch.md (Show HN)
+```
+
+
 ## 구성
 
 | 서비스 | 호스팅 | URL |

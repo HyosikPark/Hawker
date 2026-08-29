@@ -1,9 +1,22 @@
 # Show HN 런칭 플랜 (M6)
 
-## 포스트 초안
+> 2026-08-29 개정: "한국 데이터" 각을 훅으로 추가. 한국어 리허설은 docs/launch-kr.md.
+
+## 포스트 초안 (개정판)
 
 **제목 (80자 제한):**
+> Show HN: Hawker – I sell Korean government data to AI agents, per call
+
+**대안 제목:**
 > Show HN: Hawker – Turn your API into a product AI agents can discover and pay for
+
+**훅 (본문 서두에 추가):**
+> Agents don't buy sneakers — they buy senses, hands, and memory. My bet: the
+> most valuable things to sell them are datasets that are invisible to their
+> training data AND to English-language search. Korea is full of those: official
+> apartment transaction prices, business registration status, substitute
+> holidays. I wrapped them (plus the tooling to wrap anything) into per-call
+> products agents can discover and pay for autonomously.
 
 **본문 초안:**
 
@@ -55,3 +68,9 @@
 - "수요가 있긴 한가?" → 정직하게: 아직 작다(실질 일 ~$28K). 우리는 GMV 수수료가 아니라
   공급자 도구를 판다. 곡괭이 장사 타이밍이라는 판단.
 - "크립토 필수인가?" → 아니다. Stripe 선불 크레딧 레일이 기본 제공되고 x402는 선택.
+- "AgentCash랑 뭐가 달라?" → AgentCash의 본체는 구매자용 지갑(수요 집계)이고, 판매자는
+  자기 코드에 결제를 직접 통합해야 한다. Hawker는 반대편 — 코드 0줄로 OpenAPI 스펙만
+  붙여넣으면 호스팅·과금·정산까지. 상호보완적이라 우리 상품을 그들 디스커버리에 올릴
+  계획이다. (MCPize와의 차이: 이중 레일(x402+법정화폐), 대시보드 셀프서브, 응답 변환)
+- "왜 한국 데이터인가?" → 글로벌 모델의 학습에도, 영어 검색에도 없는 데이터라
+  에이전트가 돈 주고 살 이유가 가장 명확한 카테고리다. 그리고 나만 만들 수 있다.
