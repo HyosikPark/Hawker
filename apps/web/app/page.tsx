@@ -47,6 +47,48 @@ export default function Landing() {
         </div>
       </section>
 
+      <section style={{ margin: '48px 0' }}>
+        <h2 style={{ fontSize: 22, marginBottom: 14, textAlign: 'center' }}>Built to be verified, not trusted</h2>
+        <div className="steps" style={{ margin: 0 }}>
+          <div className="card step">
+            <h3>Failed calls cost $0</h3>
+            <p>
+              Payment is committed only after your upstream call succeeds. If it fails, the buyer
+              is never charged — enforced in code, not policy.
+            </p>
+          </div>
+          <div className="card step">
+            <h3>On-chain receipts</h3>
+            <p>
+              x402 settlements return the transaction hash in the response. Every payment is
+              publicly verifiable on Base — we couldn&apos;t hide a charge if we wanted to.
+            </p>
+          </div>
+          <div className="card step">
+            <h3>Keys encrypted, code public</h3>
+            <p>
+              Upstream API keys are AES-256-GCM encrypted at rest and never reach buyers. Don&apos;t
+              take our word for it —{' '}
+              <a href="https://github.com/HyosikPark/Hawker/blob/main/apps/gateway/src/crypto.ts">
+                read the code
+              </a>
+              . The whole gateway is open source.
+            </p>
+          </div>
+          <div className="card step">
+            <h3>Start at zero risk</h3>
+            <p>
+              Free tools to try, $0.001 calls to test, prepaid credits to cap exposure. You never
+              risk more than you loaded.
+            </p>
+          </div>
+        </div>
+        <p className="hint" style={{ textAlign: 'center', marginTop: 14 }}>
+          Built in the open by{' '}
+          <a href="https://github.com/HyosikPark">Hyosik Park</a> · <Link href="/terms">Terms &amp; policies</Link>
+        </p>
+      </section>
+
       <pre className="code">
         {`$ curl -X POST https://api.hawker.dev/v1/products \\
     -H "Authorization: Bearer hs_..." \\
