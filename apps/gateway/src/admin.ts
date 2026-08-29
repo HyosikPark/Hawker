@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { Hono, type MiddlewareHandler } from 'hono';
-import { desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import YAML from 'yaml';
 import { db, sellers, products, tools, usageEvents, payouts } from '@hawker/db';
 import { encryptSecret, sha256Hex } from './crypto.js';
@@ -281,6 +281,39 @@ admin.get('/products/:slug/events', (c) => {
       createdAt: e.createdAt.toISOString(),
     })),
   });
+});
+
+// --- 상품 관리 ---
+
+admin.patch('/products/:slug', async (c) => {
+  const seller = c.get('seller');
+  const product = db.select().from(products).where(eq(products.slug, c.req.param('slug'))).get();
+  if (!product || product.sellerId !== seller.id) return c.json({ error: 'Product not found' }, 404);
+  const body = await c.req.json().catch(() => ({}));
+  const status = body?.status;
+  if (status !== 'live' && status !== 'paused') {
+    return c.json({ error: 'status는 live 또는 paused여야 합니다.' }, 400);
+  }
+  db.update(products).set({ status }).where(eq(products.id, product.id)).run();
+  return c.json({ slug: product.slug, status });
+});
+
+admin.patch('/products/:slug/tools/:toolName', async (c) => {
+  const seller = c.get('seller');
+  const product = db.select().from(products).where(eq(products.slug, c.req.param('slug'))).get();
+  if (!product || product.sellerId !== seller.id) return c.json({ error: 'Product not found' }, 404);
+  const body = await c.req.json().catch(() => ({}));
+  const price = Number(body?.priceUsdMicros);
+  if (!Number.isInteger(price) || price < 0 || price > 100_000_000) {
+    return c.json({ error: 'priceUsdMicros는 0~100,000,000 정수여야 합니다.' }, 400);
+  }
+  const res = db
+    .update(tools)
+    .set({ priceUsdMicros: price })
+    .where(and(eq(tools.productId, product.id), eq(tools.name, c.req.param('toolName'))))
+    .run();
+  if (res.changes === 0) return c.json({ error: 'Tool not found' }, 404);
+  return c.json({ slug: product.slug, tool: c.req.param('toolName'), priceUsdMicros: price });
 });
 
 // --- 정산 (M6) ---

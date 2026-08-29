@@ -184,6 +184,7 @@ export default function Dashboard() {
   const [npSlug, setNpSlug] = useState('');
   const [npPrice, setNpPrice] = useState('0.002');
   const [npSpec, setNpSpec] = useState('');
+  const [npAuthIn, setNpAuthIn] = useState<'header' | 'query'>('header');
   const [npAuthHeader, setNpAuthHeader] = useState('');
   const [npAuthValue, setNpAuthValue] = useState('');
   const [npResult, setNpResult] = useState<string | null>(null);
@@ -203,7 +204,7 @@ export default function Dashboard() {
       if (/^https?:\/\//.test(spec)) body.openapiUrl = spec;
       else body.openapi = spec;
       if (npAuthHeader.trim() && npAuthValue.trim()) {
-        body.upstreamAuth = { header: npAuthHeader.trim(), value: npAuthValue.trim() };
+        body.upstreamAuth = { in: npAuthIn, name: npAuthHeader.trim(), value: npAuthValue.trim() };
       }
       const res = await fetch(`${GW}/v1/products`, {
         method: 'POST',
@@ -401,9 +402,16 @@ export default function Dashboard() {
               placeholder={'https://example.com/openapi.json\n— or paste the document itself'}
             />
             <div className="row">
+              <div style={{ width: 140 }}>
+                <label className="label">Auth location</label>
+                <select className="input" value={npAuthIn} onChange={(e) => setNpAuthIn(e.target.value as 'header' | 'query')}>
+                  <option value="header">Header</option>
+                  <option value="query">Query param</option>
+                </select>
+              </div>
               <div style={{ flex: 1 }}>
-                <label className="label">Upstream auth header (optional)</label>
-                <input className="input mono" value={npAuthHeader} onChange={(e) => setNpAuthHeader(e.target.value)} placeholder="X-Api-Key" />
+                <label className="label">Auth name (optional)</label>
+                <input className="input mono" value={npAuthHeader} onChange={(e) => setNpAuthHeader(e.target.value)} placeholder={npAuthIn === 'header' ? 'X-Api-Key' : 'serviceKey'} />
               </div>
               <div style={{ flex: 1 }}>
                 <label className="label">Upstream auth value (encrypted at rest)</label>

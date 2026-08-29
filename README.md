@@ -17,6 +17,21 @@ gateway at [hawker-gateway.fly.dev](https://hawker-gateway.fly.dev) ·
 first product listed on the [official MCP Registry](https://registry.modelcontextprotocol.io)
 as `io.github.HyosikPark/weather`
 
+## Agent-native onboarding — no UI required
+
+Hawker's own seller console is an MCP server. Add it to your agent and delegate
+everything — signup, product creation, pricing, payouts:
+
+```bash
+claude mcp add --transport http hawker https://hawker-gateway.fly.dev/mcp
+```
+
+Then just tell your agent: *"Register my API on Hawker — spec is at
+https://example.com/openapi.json, charge $0.002 per call."* It creates your
+account, packages the API, and hands you the live MCP URL. Stats, price changes,
+pausing, and payout requests all work the same way. (A web dashboard exists too,
+for humans who like clicking.)
+
 ## How it works
 
 ```

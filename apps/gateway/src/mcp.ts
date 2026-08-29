@@ -22,11 +22,11 @@ interface RequestContext {
   resourceUrl: string;
 }
 
-function rpcResult(id: JsonRpcRequest['id'], result: unknown): McpHttpResponse {
+export function rpcResult(id: JsonRpcRequest['id'], result: unknown): McpHttpResponse {
   return { status: 200, body: { jsonrpc: '2.0', id: id ?? null, result } };
 }
 
-function rpcError(
+export function rpcError(
   id: JsonRpcRequest['id'],
   code: number,
   message: string,

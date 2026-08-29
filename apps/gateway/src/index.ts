@@ -24,6 +24,7 @@ import { buyer } from './buyer.js';
 import { datasets } from './datasets.js';
 import { webhooks } from './webhooks.js';
 import { handleMcpRequest } from './mcp.js';
+import { handleSellerMcp } from './sellerMcp.js';
 import { rateLimit } from './ratelimit.js';
 import { canonicalUrl, formatUsd } from './types.js';
 
@@ -57,6 +58,37 @@ function loadProduct(slug: string) {
   const productTools = db.select().from(tools).where(eq(tools.productId, product.id)).all();
   return { product, productTools };
 }
+
+// 판매자용 메타 MCP 서버: 온보딩·운영을 에이전트가 대신한다
+// claude mcp add hawker https://hawker-gateway.fly.dev/mcp
+app.get('/mcp', (c) => {
+  if (c.req.header('accept')?.includes('text/event-stream')) return c.body(null, 405);
+  return c.json({
+    name: 'hawker',
+    description:
+      'Seller console as MCP. Add this server to your agent and say: ' +
+      '"register my API on Hawker". Tools: create_seller_account, create_product, ' +
+      'get_stats, get_earnings, request_payout, and more.',
+    mcp: { transport: 'streamable-http', url: canonicalUrl(c.req.url, c.req.header('x-forwarded-proto')).href },
+  });
+});
+
+app.post('/mcp', async (c) => {
+  let rpc: unknown;
+  try {
+    rpc = await c.req.json();
+  } catch {
+    return c.json({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } }, 400);
+  }
+  const res = await handleSellerMcp(rpc, {
+    origin: canonicalUrl(c.req.url, c.req.header('x-forwarded-proto')).origin,
+    authorizationHeader: c.req.header('authorization'),
+    clientIp:
+      c.req.header('fly-client-ip') ?? c.req.header('x-forwarded-for')?.split(',')[0]?.trim() ?? 'local',
+  });
+  if (res.body === null) return c.body(null, res.status as 202);
+  return c.json(res.body, res.status as 200);
+});
 
 // 에이전트/사람이 읽을 수 있는 상품 카드. (SSE를 여는 MCP 클라이언트에는 스펙대로 405)
 app.get('/mcp/:slug', (c) => {
