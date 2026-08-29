@@ -153,6 +153,13 @@ export function importOpenApi(
         [op.summary, op.description].filter(Boolean).join(' — ') ||
         `${method.toUpperCase()} ${path}`;
 
+      // 선택적 Hawker 확장: 응답 변환 지시 (예: {"responseTransform":"xml-to-json","responseUnwrap":"response.body"})
+      const ext = (op['x-hawker'] ?? {}) as {
+        responseTransform?: string;
+        responseUnwrap?: string;
+        staticQuery?: Record<string, string>;
+      };
+
       seen.add(name);
       tools.push({
         name,
@@ -163,6 +170,9 @@ export function importOpenApi(
           pathTemplate: path,
           ...(Object.keys(queryMap).length ? { query: queryMap } : {}),
           ...(bodyArgs?.length ? { bodyArgs } : {}),
+          ...(ext.responseTransform === 'xml-to-json' ? { responseTransform: 'xml-to-json' as const } : {}),
+          ...(ext.responseUnwrap ? { responseUnwrap: ext.responseUnwrap } : {}),
+          ...(ext.staticQuery ? { staticQuery: ext.staticQuery } : {}),
         },
       });
     }

@@ -40,7 +40,8 @@ create <<EOF
       "/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade": {
         "get": {
           "operationId": "get_apt_trades",
-          "summary": "Actual apartment sale transactions for a Korean district and month. Returns XML with price (만원, 10,000 KRW units), area, floor, dong, apartment name.",
+          "x-hawker": { "responseTransform": "xml-to-json", "responseUnwrap": "response.body" },
+          "summary": "Actual apartment sale transactions for a Korean district and month. Returns clean JSON: dealAmount is in 만원 (10,000 KRW units), plus area (m²), floor, dong, apartment name. Use find_district_code (kr-district-codes product) to get LAWD_CD.",
           "parameters": [
             {"name": "LAWD_CD", "in": "query", "required": true, "schema": {"type": "string", "description": "5-digit Korean legal district code. Examples: 11680 Gangnam-gu Seoul, 11110 Jongno-gu Seoul, 41135 Bundang-gu Seongnam, 26350 Haeundae-gu Busan"}},
             {"name": "DEAL_YMD", "in": "query", "required": true, "schema": {"type": "string", "description": "Transaction month, YYYYMM (e.g. 202608)"}},
@@ -114,6 +115,32 @@ create <<EOF
             {"name": "solMonth", "in": "query", "schema": {"type": "string", "description": "Month, MM (01-12); omit for whole year"}},
             {"name": "numOfRows", "in": "query", "schema": {"type": "integer", "description": "Set 100 for a full year"}},
             {"name": "_type", "in": "query", "schema": {"type": "string", "description": "Set to 'json' for JSON response"}}
+          ]
+        }
+      }
+    }
+  }
+}
+EOF
+
+echo "--- ④ kr-district-codes: 법정동코드 조회 (무료 미끼 툴, 자체 데이터셋) ---"
+create <<EOF
+{
+  "slug": "kr-district-codes",
+  "name": "kr-district-codes",
+  "description": "Free lookup of Korean 5-digit district codes (LAWD_CD) needed by kr-apt-trades. Search by Korean or English district name. Seoul covered; more regions coming.",
+  "defaultPriceUsdMicros": 0,
+  "openapi": {
+    "openapi": "3.0.3",
+    "info": {"title": "KR District Codes", "version": "1.0.0"},
+    "servers": [{"url": "$GW"}],
+    "paths": {
+      "/datasets/lawd-cd": {
+        "get": {
+          "operationId": "find_district_code",
+          "summary": "Find the 5-digit Korean legal district code (LAWD_CD) by district name, e.g. 'Gangnam' or '강남'. Free. Use the code with kr-apt-trades.get_apt_trades.",
+          "parameters": [
+            {"name": "q", "in": "query", "required": true, "schema": {"type": "string", "description": "District name in Korean or English, or code prefix"}}
           ]
         }
       }

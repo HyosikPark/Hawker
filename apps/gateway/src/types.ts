@@ -8,6 +8,10 @@ export interface UpstreamSpec {
   staticQuery?: Record<string, string>;
   /** JSON body로 전달할 인자 이름들 */
   bodyArgs?: string[];
+  /** 업스트림 응답 변환: XML을 JSON으로 (에이전트 토큰 절약) */
+  responseTransform?: 'xml-to-json';
+  /** 변환 후 껍데기 벗기기 — dot 경로 (예: "response.body") */
+  responseUnwrap?: string;
 }
 
 export interface JsonRpcRequest {

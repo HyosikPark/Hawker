@@ -1,6 +1,28 @@
+import { XMLParser } from 'fast-xml-parser';
 import type { products, tools } from '@hawker/db';
 import { decryptSecret } from './crypto.js';
 import type { UpstreamSpec } from './types.js';
+
+const xmlParser = new XMLParser({ ignoreAttributes: true });
+
+/** 응답 후처리: XML→JSON 변환과 dot 경로 unwrap. 실패 시 원본 유지(과금 데이터를 잃지 않기 위해). */
+export function transformResponse(body: unknown, spec: UpstreamSpec): unknown {
+  let out = body;
+  if (spec.responseTransform === 'xml-to-json' && typeof out === 'string' && out.trimStart().startsWith('<')) {
+    try {
+      out = xmlParser.parse(out);
+    } catch {
+      return body;
+    }
+  }
+  if (spec.responseUnwrap && out && typeof out === 'object') {
+    const unwrapped = spec.responseUnwrap
+      .split('.')
+      .reduce<unknown>((acc, key) => (acc as Record<string, unknown>)?.[key], out);
+    if (unwrapped !== undefined) out = unwrapped;
+  }
+  return out;
+}
 
 type Product = typeof products.$inferSelect;
 type Tool = typeof tools.$inferSelect;
@@ -68,7 +90,7 @@ export async function callUpstream(
   try {
     parsed = JSON.parse(text);
   } catch {
-    // 업스트림이 JSON이 아니면 원문 그대로
+    // 업스트림이 JSON이 아니면 원문 그대로 (변환은 아래에서)
   }
-  return { ok: res.ok, status: res.status, body: parsed };
+  return { ok: res.ok, status: res.status, body: transformResponse(parsed, spec) };
 }

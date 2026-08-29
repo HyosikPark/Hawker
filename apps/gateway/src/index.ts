@@ -21,6 +21,7 @@ import { eq } from 'drizzle-orm';
 import { db, products, tools } from '@hawker/db';
 import { admin } from './admin.js';
 import { buyer } from './buyer.js';
+import { datasets } from './datasets.js';
 import { webhooks } from './webhooks.js';
 import { handleMcpRequest } from './mcp.js';
 import { rateLimit } from './ratelimit.js';
@@ -36,6 +37,7 @@ const publicLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 10 });
 app.use('/v1/sellers', publicLimiter);
 app.use('/v1/buyer/keys', publicLimiter);
 
+app.route('/datasets', datasets);
 app.route('/v1/buyer', buyer);
 app.route('/v1/webhooks', webhooks);
 app.route('/v1', admin);
