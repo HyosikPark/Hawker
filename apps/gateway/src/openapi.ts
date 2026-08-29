@@ -1,4 +1,5 @@
 import type { UpstreamSpec } from './types.js';
+import { sanitizeText, MAX_DESC_LEN } from './validate.js';
 
 /**
  * OpenAPI 3.x 문서 → Hawker 툴 변환기.
@@ -149,8 +150,9 @@ export function importOpenApi(
         }
       }
 
+      // 판매자 텍스트는 구매 에이전트가 그대로 읽으므로 살균 (제어문자 제거, 길이 상한)
       const description =
-        [op.summary, op.description].filter(Boolean).join(' — ') ||
+        sanitizeText([op.summary, op.description].filter(Boolean).join(' — '), MAX_DESC_LEN) ||
         `${method.toUpperCase()} ${path}`;
 
       // 선택적 Hawker 확장: 응답 변환 지시 (예: {"responseTransform":"xml-to-json","responseUnwrap":"response.body"})

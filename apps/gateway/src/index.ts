@@ -114,6 +114,10 @@ app.get('/mcp/:slug', (c) => {
   });
 });
 
+// 툴콜 남용/DoS 방어: IP당 분당 120회 (무료 툴 무제한 호출 + 업스트림 증폭 차단)
+const mcpLimiter = rateLimit({ windowMs: 60_000, max: 120 });
+app.use('/mcp/:slug', mcpLimiter);
+
 app.post('/mcp/:slug', async (c) => {
   const loaded = loadProduct(c.req.param('slug'));
   if (!loaded) return c.json({ error: 'Product not found' }, 404);

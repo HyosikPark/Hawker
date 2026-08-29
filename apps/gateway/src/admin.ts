@@ -6,6 +6,7 @@ import { db, sellers, products, tools, usageEvents, payouts } from '@hawker/db';
 import { encryptSecret, sha256Hex } from './crypto.js';
 import { importOpenApi } from './openapi.js';
 import { forbiddenUpstreamReason } from './ssrf.js';
+import { priceInBounds, sanitizeText, MAX_DESC_LEN, MAX_NAME_LEN } from './validate.js';
 import { canonicalUrl, formatUsd } from './types.js';
 
 /**
@@ -75,8 +76,15 @@ admin.post('/products', async (c) => {
   }
 
   const defaultPrice = Number(body.defaultPriceUsdMicros ?? 0);
-  if (!Number.isInteger(defaultPrice) || defaultPrice < 0 || defaultPrice > 100_000_000) {
+  if (!priceInBounds(defaultPrice)) {
     return c.json({ error: 'defaultPriceUsdMicros는 0~100,000,000(=$100) 정수여야 합니다.' }, 400);
+  }
+  // priceOverrides도 동일 경계 검증 (음수/초대형 가격 우회 차단)
+  const overrides = (body.priceOverrides ?? {}) as Record<string, unknown>;
+  for (const [tool, price] of Object.entries(overrides)) {
+    if (!priceInBounds(price)) {
+      return c.json({ error: `priceOverrides.${tool}는 0~100,000,000 정수여야 합니다.` }, 400);
+    }
   }
 
   // OpenAPI 문서 확보: 인라인(object/string) 또는 URL
@@ -85,9 +93,17 @@ admin.post('/products', async (c) => {
     const forbidden = forbiddenUpstreamReason(body.openapiUrl);
     if (forbidden) return c.json({ error: `openapiUrl: ${forbidden}` }, 400);
     try {
-      const res = await fetch(body.openapiUrl, { signal: AbortSignal.timeout(10_000) });
+      const res = await fetch(body.openapiUrl, {
+        redirect: 'manual', // 리다이렉트로 내부망 우회 차단
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (res.status >= 300 && res.status < 400) {
+        return c.json({ error: 'openapiUrl은 리다이렉트할 수 없습니다.' }, 400);
+      }
       if (!res.ok) return c.json({ error: `openapiUrl 조회 실패: HTTP ${res.status}` }, 400);
-      doc = await res.text();
+      const spec = await res.text();
+      if (spec.length > 2_000_000) return c.json({ error: 'openapiUrl 문서가 너무 큽니다(>2MB).' }, 400);
+      doc = spec;
     } catch (err) {
       return c.json({ error: `openapiUrl 조회 실패: ${(err as Error).message}` }, 400);
     }
@@ -144,9 +160,14 @@ admin.post('/products', async (c) => {
     }
   }
 
-  const overrides = (body.priceOverrides ?? {}) as Record<string, number>;
+  const priceFor = (toolName: string): number =>
+    priceInBounds(overrides[toolName]) ? (overrides[toolName] as number) : defaultPrice;
   const productId = crypto.randomUUID();
   const docObj = doc as { info?: { title?: string; description?: string } };
+  const productName = sanitizeText(body.name ?? docObj.info?.title ?? slug, MAX_NAME_LEN) || slug;
+  const productDesc =
+    sanitizeText(body.description ?? docObj.info?.description ?? `${slug} API`, MAX_DESC_LEN) ||
+    `${slug} API`;
 
   db.transaction((tx) => {
     tx.insert(products)
@@ -154,8 +175,8 @@ admin.post('/products', async (c) => {
         id: productId,
         sellerId: seller.id,
         slug,
-        name: String(body.name ?? docObj.info?.title ?? slug),
-        description: String(body.description ?? docObj.info?.description ?? `${slug} API`),
+        name: productName,
+        description: productDesc,
         upstreamBaseUrl,
         upstreamAuthEncrypted,
         status: 'live',
@@ -170,7 +191,7 @@ admin.post('/products', async (c) => {
           description: t.description,
           inputSchema: t.inputSchema,
           upstream: t.upstream,
-          priceUsdMicros: Number.isInteger(overrides[t.name]) ? overrides[t.name] : defaultPrice,
+          priceUsdMicros: priceFor(t.name),
         })
         .run();
     }
@@ -184,7 +205,7 @@ admin.post('/products', async (c) => {
       mcpUrl: `${origin}/mcp/${slug}`,
       tools: imported.tools.map((t) => ({
         name: t.name,
-        price: formatUsd(Number.isInteger(overrides[t.name]) ? overrides[t.name] : defaultPrice),
+        price: formatUsd(priceFor(t.name)),
       })),
       warnings: imported.warnings,
     },
@@ -309,7 +330,7 @@ admin.patch('/products/:slug/tools/:toolName', async (c) => {
   if (!product || product.sellerId !== seller.id) return c.json({ error: 'Product not found' }, 404);
   const body = await c.req.json().catch(() => ({}));
   const price = Number(body?.priceUsdMicros);
-  if (!Number.isInteger(price) || price < 0 || price > 100_000_000) {
+  if (!priceInBounds(price)) {
     return c.json({ error: 'priceUsdMicros는 0~100,000,000 정수여야 합니다.' }, 400);
   }
   const res = db

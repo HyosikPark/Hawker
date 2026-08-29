@@ -1,6 +1,7 @@
 import { XMLParser } from 'fast-xml-parser';
 import type { products, tools } from '@hawker/db';
 import { decryptSecret } from './crypto.js';
+import { forbiddenUpstreamReason } from './ssrf.js';
 import type { UpstreamSpec } from './types.js';
 
 const xmlParser = new XMLParser({ ignoreAttributes: true });
@@ -78,14 +79,24 @@ export async function callUpstream(
     headers['content-type'] = 'application/json';
   }
 
+  // 호출 시점 SSRF 재검사 (DNS 리바인딩 방어) + 리다이렉트 수동 처리(내부망 302 우회 차단)
+  const reason = forbiddenUpstreamReason(url.href);
+  if (reason) throw new Error(`Upstream blocked: ${reason}`);
+
   const res = await fetch(url, {
     method: spec.method,
     headers,
     body,
+    redirect: 'manual',
     signal: AbortSignal.timeout(30_000),
   });
 
-  const text = await res.text();
+  // 리다이렉트는 따라가지 않음 — 내부망으로 튀는 302 SSRF 차단
+  if (res.status >= 300 && res.status < 400) {
+    throw new Error(`Upstream redirected (${res.status}); redirects are not followed.`);
+  }
+
+  const text = await readCapped(res, MAX_UPSTREAM_BYTES);
   let parsed: unknown = text;
   try {
     parsed = JSON.parse(text);
@@ -93,4 +104,25 @@ export async function callUpstream(
     // 업스트림이 JSON이 아니면 원문 그대로 (변환은 아래에서)
   }
   return { ok: res.ok, status: res.status, body: transformResponse(parsed, spec) };
+}
+
+const MAX_UPSTREAM_BYTES = 5_000_000; // 5MB — 대용량 응답 메모리 고갈 방어
+
+/** 응답 본문을 상한까지만 읽는다. 초과 시 에러(과금 데이터를 어중간히 반환하지 않음). */
+async function readCapped(res: Response, maxBytes: number): Promise<string> {
+  const reader = res.body?.getReader();
+  if (!reader) return '';
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.length;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new Error(`Upstream response exceeded ${maxBytes} bytes.`);
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString('utf8');
 }
