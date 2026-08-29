@@ -1,7 +1,17 @@
-try {
-  process.loadEnvFile();
-} catch {
-  // .env 없이도 동작 (stub 모드 기본값)
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// 실행 위치와 무관하게 리포 루트의 .env를 로드 (없으면 무시 — stub 모드 기본값)
+for (const envPath of [
+  path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../.env'),
+  '.env',
+]) {
+  try {
+    process.loadEnvFile(envPath);
+    break;
+  } catch {
+    // 다음 후보 시도
+  }
 }
 
 import { serve } from '@hono/node-server';
