@@ -4,6 +4,7 @@ import { authorizePayment, commitPayment, type PaymentGrant } from './payments.j
 import { callUpstream } from './upstream.js';
 import { formatUsd, type JsonRpcRequest } from './types.js';
 import { encodeReceipt } from './x402.js';
+import { reputationBadge, reputationForProduct } from './reputation.js';
 
 type Product = typeof products.$inferSelect;
 type Tool = typeof tools.$inferSelect;
@@ -94,18 +95,28 @@ export async function handleMcpRequest(
     case 'ping':
       return rpcResult(req.id, {});
 
-    case 'tools/list':
+    case 'tools/list': {
+      // 실측 신뢰 지표를 툴 설명·메타에 함께 실어 에이전트가 사기 전 판단하게 한다
+      const badge = reputationBadge(reputationForProduct(product.id));
+      const repSuffix =
+        badge.confidence === 'none'
+          ? ' [New — no track record yet]'
+          : ` [Measured: ${badge.successRate} success, ${badge.totalPaidCalls} paid calls]`;
       return rpcResult(req.id, {
         tools: productTools.map((t) => ({
           name: t.name,
           description:
             t.priceUsdMicros > 0
-              ? `${t.description} [Paid: ${formatUsd(t.priceUsdMicros)} per call]`
+              ? `${t.description} [Paid: ${formatUsd(t.priceUsdMicros)} per call]${repSuffix}`
               : t.description,
           inputSchema: t.inputSchema,
-          _meta: { 'dev.hawker/price': { usdMicros: t.priceUsdMicros, display: formatUsd(t.priceUsdMicros) } },
+          _meta: {
+            'dev.hawker/price': { usdMicros: t.priceUsdMicros, display: formatUsd(t.priceUsdMicros) },
+            'dev.hawker/reputation': badge,
+          },
         })),
       });
+    }
 
     case 'tools/call':
       return handleToolCall(product, productTools, req as JsonRpcRequest, ctx);

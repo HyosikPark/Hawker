@@ -25,6 +25,7 @@ import { datasets } from './datasets.js';
 import { webhooks } from './webhooks.js';
 import { handleMcpRequest } from './mcp.js';
 import { handleSellerMcp } from './sellerMcp.js';
+import { reputationBadge, reputationForProduct } from './reputation.js';
 import { rateLimit } from './ratelimit.js';
 import { canonicalUrl, formatUsd } from './types.js';
 
@@ -98,10 +99,19 @@ app.get('/mcp/:slug', (c) => {
   const loaded = loadProduct(c.req.param('slug'));
   if (!loaded) return c.json({ error: 'Product not found' }, 404);
   const { product, productTools } = loaded;
+  // 판매자 주장이 아닌 게이트웨이 실측 신뢰 지표 — 에이전트가 사기 전에 본다
+  const badge = reputationBadge(reputationForProduct(product.id));
   return c.json({
     name: product.name,
     description: product.description,
     mcp: { transport: 'streamable-http', url: canonicalUrl(c.req.url, c.req.header('x-forwarded-proto')).href },
+    reputation: {
+      note: 'Measured by Hawker from real traffic, not claimed by the seller.',
+      successRate30d: badge.successRate,
+      medianLatency: badge.latency,
+      totalPaidCalls: badge.totalPaidCalls,
+      confidence: badge.confidence,
+    },
     tools: productTools.map((t) => ({
       name: t.name,
       description: t.description,
