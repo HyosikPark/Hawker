@@ -15,7 +15,7 @@ for (const envPath of [
 }
 
 import { serve } from '@hono/node-server';
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { cors } from 'hono/cors';
 import { eq } from 'drizzle-orm';
 import { db, products, tools } from '@hawker/db';
@@ -26,6 +26,7 @@ import { webhooks } from './webhooks.js';
 import { handleMcpRequest } from './mcp.js';
 import { handleSellerMcp } from './sellerMcp.js';
 import { reputationBadge, reputationForProduct } from './reputation.js';
+import { buildDiscovery } from './discovery.js';
 import { rateLimit } from './ratelimit.js';
 import { canonicalUrl, formatUsd } from './types.js';
 
@@ -49,9 +50,21 @@ app.get('/', (c) =>
     name: 'hawker-gateway',
     tagline: 'Turn your API into an agent-payable product in 5 minutes',
     version: '0.1.0',
-    endpoints: { product: 'GET /mcp/:slug (product card)', mcp: 'POST /mcp/:slug (Streamable HTTP, stateless)' },
+    endpoints: {
+      product: 'GET /mcp/:slug (product card)',
+      mcp: 'POST /mcp/:slug (Streamable HTTP, stateless)',
+      discovery: 'GET /.well-known/x402 (machine-readable catalog)',
+    },
   }),
 );
+
+// 기계 판독 발견 매니페스트 — x402 인덱서가 크롤링, 에이전트가 카탈로그 조회
+const discoveryHandler = (c: Context) => {
+  const origin = canonicalUrl(c.req.url, c.req.header('x-forwarded-proto')).origin;
+  return c.json(buildDiscovery(origin), 200, { 'Cache-Control': 'public, max-age=300' });
+};
+app.get('/.well-known/x402', discoveryHandler);
+app.get('/discovery', discoveryHandler);
 
 function loadProduct(slug: string) {
   const product = db.select().from(products).where(eq(products.slug, slug)).get();
