@@ -22,6 +22,7 @@ import { db, products, tools } from '@hawker/db';
 import { admin } from './admin.js';
 import { buyer } from './buyer.js';
 import { datasets } from './datasets.js';
+import { x402http } from './x402http.js';
 import { webhooks } from './webhooks.js';
 import { handleMcpRequest } from './mcp.js';
 import { handleSellerMcp } from './sellerMcp.js';
@@ -41,6 +42,7 @@ app.use('/v1/sellers', publicLimiter);
 app.use('/v1/buyer/keys', publicLimiter);
 
 app.route('/datasets', datasets);
+app.route('/x402', x402http); // CDP Bazaar용 평범한 HTTP 유료 엔드포인트
 app.route('/v1/buyer', buyer);
 app.route('/v1/webhooks', webhooks);
 app.route('/v1', admin);

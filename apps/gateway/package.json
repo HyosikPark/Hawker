@@ -10,8 +10,10 @@
     "test": "tsx --test src/*.test.ts"
   },
   "dependencies": {
+    "@coinbase/x402": "^2.1.0",
     "@hawker/db": "workspace:*",
     "@hono/node-server": "^1.14.0",
+    "@x402/extensions": "^2.24.0",
     "drizzle-orm": "^0.44.7",
     "fast-xml-parser": "^5.11.1",
     "hono": "^4.8.0",

@@ -9,9 +9,9 @@ primary_region = "nrt"
 [env]
   PORT = "8402"
   HAWKER_DB_PATH = "/data/hawker.db"
-  # x402 실검증/정산 (테스트넷) — 메인넷 전환 시 network=base + CDP facilitator
-  HAWKER_X402_MODE = "facilitator"
-  HAWKER_X402_FACILITATOR_URL = "https://x402.org/facilitator"
+  # x402: CDP facilitator (테스트넷 base-sepolia 유지 → Bazaar 발견용, 실돈 0)
+  # CDP_API_KEY_ID / CDP_API_KEY_SECRET 는 fly secrets 로 주입
+  HAWKER_X402_MODE = "cdp"
   HAWKER_X402_NETWORK = "base-sepolia"
   HAWKER_PAYTO_ADDRESS = "0x98563C4b9d6F1D18bfe6Bd813DD2C6c3CFcE7B19"
 

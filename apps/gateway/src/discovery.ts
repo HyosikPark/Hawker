@@ -56,6 +56,8 @@ export function buildDiscovery(origin: string): {
           name: t.name,
           price: formatUsd(t.priceUsdMicros),
           priceUsdMicros: t.priceUsdMicros,
+          // MCP 안 쓰는 에이전트용: 평범한 x402 HTTP 엔드포인트 (CDP Bazaar 형식)
+          httpEndpoint: `${origin}/x402/${p.slug}/${t.name}`,
         })),
       },
       reputation: reputationBadge(reputationForProduct(p.id)),

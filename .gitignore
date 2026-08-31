@@ -12,3 +12,5 @@ data/*.db-wal
 .wallets.testnet.json
 .datago.key
 .kr-seller-token*
+.cdp-key-id
+.cdp-key-secret

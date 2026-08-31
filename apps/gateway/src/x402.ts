@@ -13,7 +13,8 @@ const USDC_BY_NETWORK: Record<string, { asset: string; name: string; version: st
 };
 
 export interface X402Config {
-  mode: 'stub' | 'facilitator';
+  // stub: 로컬(X-PAYMENT:test) / facilitator: 범용 URL / cdp: Coinbase CDP(Bazaar 노출)
+  mode: 'stub' | 'facilitator' | 'cdp';
   network: string;
   facilitatorUrl?: string;
   payTo: string;
@@ -21,13 +22,35 @@ export interface X402Config {
 }
 
 export function configFromEnv(): X402Config {
+  const raw = process.env.HAWKER_X402_MODE;
+  const mode: X402Config['mode'] =
+    raw === 'cdp' ? 'cdp' : raw === 'facilitator' ? 'facilitator' : 'stub';
   return {
-    mode: process.env.HAWKER_X402_MODE === 'facilitator' ? 'facilitator' : 'stub',
+    mode,
     network: process.env.HAWKER_X402_NETWORK ?? 'base-sepolia',
-    facilitatorUrl: process.env.HAWKER_X402_FACILITATOR_URL,
+    // cdp 모드는 CDP facilitator URL을 고정 사용, 그 외는 env
+    facilitatorUrl:
+      mode === 'cdp'
+        ? 'https://api.cdp.coinbase.com/platform/v2/x402'
+        : process.env.HAWKER_X402_FACILITATOR_URL,
     payTo: process.env.HAWKER_PAYTO_ADDRESS ?? '0x0000000000000000000000000000000000000000',
     fetchFn: fetch,
   };
+}
+
+/** CDP 모드일 때 verify/settle 요청에 붙일 인증 헤더 생성. 그 외엔 빈 객체. */
+async function authHeadersFor(
+  cfg: X402Config,
+  path: 'verify' | 'settle',
+): Promise<Record<string, string>> {
+  if (cfg.mode !== 'cdp') return {};
+  const { facilitator } = await import('@coinbase/x402');
+  if (!facilitator.createAuthHeaders) {
+    throw new Error('CDP facilitator 인증 헤더 생성 불가 (@coinbase/x402 버전 확인)');
+  }
+  // CDP SDK가 CDP_API_KEY_ID / CDP_API_KEY_SECRET 환경변수를 읽어 JWT 서명
+  const headers = await facilitator.createAuthHeaders();
+  return (headers[path] ?? {}) as Record<string, string>;
 }
 
 export interface PaymentRequirementsV1 {
@@ -109,7 +132,7 @@ export async function verifyPayment(
 
   const res = await cfg.fetchFn(`${cfg.facilitatorUrl}/verify`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...(await authHeadersFor(cfg, 'verify')) },
     body: JSON.stringify({ x402Version: 1, paymentPayload, paymentRequirements: requirements }),
     signal: AbortSignal.timeout(10_000),
   });
@@ -129,7 +152,7 @@ export async function settlePayment(
   const paymentPayload = decodePaymentHeader(paymentHeader);
   const res = await cfg.fetchFn(`${cfg.facilitatorUrl}/settle`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...(await authHeadersFor(cfg, 'settle')) },
     body: JSON.stringify({ x402Version: 1, paymentPayload, paymentRequirements: requirements }),
     signal: AbortSignal.timeout(20_000),
   });
